@@ -7,9 +7,9 @@ RUN apt-get update && \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Variables de entorno
-ENV PYTHONUNBUFFERED=1 \
-    PORT=8000  # Valor por defecto (Render lo sobrescribe)
+# 2. Variables de entorno (sin comentarios en la misma línea)
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8000
 
 # 3. Directorio de trabajo
 WORKDIR /app
@@ -25,5 +25,5 @@ COPY . .
 RUN mkdir -p temp && \
     chmod -R 777 temp
 
-# 7. Comando de ejecución (¡CORRECCIÓN CLAVE AQUÍ!)
+# 7. Comando de ejecución (formato seguro para variables)
 CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:${PORT} --workers 2"]

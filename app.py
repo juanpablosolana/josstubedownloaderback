@@ -1,26 +1,46 @@
-FROM python:3.9-slim
+from flask import Flask, request, send_file, jsonify
+import yt_dlp
+import os
+import os
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
+port = int(os.environ.get("PORT", 8000))  # Usa 8000 si PORT no existe
+if not (1 <= port <= 65535):
+    port = 8000  # Valor por defecto si PORT es inválido
+app = Flask(__name__)
 
+@app.route('/convert', methods=['GET'])
+def convert_to_mp3():
+    youtube_url = request.args.get('url')
 
-ENV PYTHONUNBUFFERED=1
-ENV PORT=8000
+    if not youtube_url:
+        return jsonify({"error": "Falta la URL de YouTube"}), 400
 
+    try:
+        # Configuración para descargar el audio como MP3
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'outtmpl': 'temp/%(title)s.%(ext)s',  # Guarda en carpeta 'temp'
+        }
 
-WORKDIR /app
+        # Descargar el audio
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(youtube_url, download=True)
+            filename = ydl.prepare_filename(info).replace('.webm', '.mp3')
 
+        # Enviar el archivo como respuesta
+        return send_file(filename, as_attachment=True)
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+# ... (código anterior)
 
-COPY . .
-
-
-RUN mkdir -p temp && \
-    chmod -R 777 temp
-
-CMD ["sh", "-c", "gunicorn app:app --bind 0.0.0.0:${PORT} --workers 2"]
+if __name__ == '__main__':
+    os.makedirs('temp', exist_ok=True)
+    port = int(os.environ.get('PORT', 3030))  # Render usa PUERTO dinámico
+    app.run(host='0.0.0.0', port=port)  # Quita debug=True en producción
