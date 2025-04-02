@@ -1,7 +1,11 @@
 from flask import Flask, request, send_file, jsonify
 import yt_dlp
 import os
+import os
 
+port = int(os.environ.get("PORT", 8000))  # Usa 8000 si PORT no existe
+if not (1 <= port <= 65535):
+    port = 8000  # Valor por defecto si PORT es inválido
 app = Flask(__name__)
 
 @app.route('/convert', methods=['GET'])
