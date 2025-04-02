@@ -1,20 +1,30 @@
 from flask import Flask, request, send_file, jsonify
 import yt_dlp
 import os
+import random
 
 app = Flask(__name__)
+
+# Lista de User-Agents rotativos
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
+]
+
+def get_random_agent():
+    return random.choice(USER_AGENTS)
 
 @app.route('/convert', methods=['GET'])
 def convert_to_mp3():
     youtube_url = request.args.get('url')
 
     if not youtube_url:
-        return jsonify({"error": "Se requiere la URL de YouTube"}), 400
+        return jsonify({"error": "Se requiere URL de YouTube"}), 400
 
     try:
-        # Configuración de yt-dlp (con headers y formato m4a para evitar bloqueos)
         ydl_opts = {
-            'format': 'bestaudio[ext=m4a]',  # Alternativa a MP3 que suele funcionar
+            'format': 'bestaudio/best',
             'outtmpl': 'temp/%(title)s.%(ext)s',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
@@ -22,15 +32,23 @@ def convert_to_mp3():
                 'preferredquality': '192',
             }],
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'User-Agent': get_random_agent(),
                 'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': 'https://www.youtube.com/',
             },
-            # 'cookiefile': 'cookies.txt',  # Descomenta si tienes cookies (ver README)
+            'extractor_args': {
+                'youtube': {
+                    'skip': ['dash', 'hls']
+                }
+            },
+            'quiet': True,
+            'no_warnings': True,
+            'ratelimit': 1000000,
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(youtube_url, download=True)
-            filename = ydl.prepare_filename(info).replace('.m4a', '.mp3')
+            filename = ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
 
         return send_file(filename, as_attachment=True)
 
